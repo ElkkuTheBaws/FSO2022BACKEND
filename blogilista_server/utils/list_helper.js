@@ -22,11 +22,51 @@ const favoriteBlog = (blogs) => {
       favorite = blogs[i];
     }
   }
-  return favorite;
+  return {
+    title: favorite.title,
+    author: favorite.author,
+    likes: favorite.likes
+  };
+};
+
+const mostBlogs = (blogs) => {
+  let authorBlogs = null;
+  for (let i = 0; i < blogs.length; i++) {
+    const allBlogs = blogs.filter(res => res.author.indexOf(blogs[i].author) !== -1);
+    if (authorBlogs == null) {
+      authorBlogs = allBlogs;
+    } else if (allBlogs.length >= authorBlogs.length) {
+      authorBlogs = allBlogs;
+    }
+  }
+  const returnBlogs = {
+    author: authorBlogs[0].author,
+    blogs: authorBlogs.length
+  };
+  return returnBlogs;
+};
+
+const mostLikes = (blogs) => {
+  let authorBlogs = null;
+  for (let i = 0; i < blogs.length; i++) {
+    const allBlogs = blogs.filter(res => res.author.indexOf(blogs[i].author) !== -1);
+    if (authorBlogs == null) {
+      authorBlogs = allBlogs;
+    } else if (totalLikes(allBlogs) > totalLikes(authorBlogs)) {
+      authorBlogs = allBlogs;
+    }
+  }
+  const returnBlogs = {
+    author: authorBlogs[0].author,
+    likes: totalLikes(authorBlogs)
+  };
+  return returnBlogs;
 };
 
 module.exports = {
   dummy,
   totalLikes,
-  favoriteBlog
+  favoriteBlog,
+  mostBlogs,
+  mostLikes
 };
