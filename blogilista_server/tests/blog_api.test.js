@@ -109,6 +109,34 @@ test('invalid blog gives statuscode bad request', async () => {
     .expect('Content-Type', /application\/json/);
 });
 
+test('Delete blog', async () => {
+  let response = await api.get('/api/blogs');
+
+  await api
+    .delete(`/api/blogs/${response.body[0].id}`)
+    .expect(204);
+
+  response = await api.get('/api/blogs');
+  expect(response.body).toHaveLength(initialBlogs.length - 1);
+});
+
+test('Update blog', async () => {
+  let response = await api.get('/api/blogs');
+
+  const updatedBlog = {
+    likes: 15
+  };
+
+  await api
+    .put(`/api/blogs/${response.body[0].id}`)
+    .send(updatedBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/);
+
+  response = await api.get('/api/blogs');
+  expect(response.body[0].likes).toBe(updatedBlog.likes);
+});
+
 afterAll(async () => {
   await mongoose.connection.close();
 });
