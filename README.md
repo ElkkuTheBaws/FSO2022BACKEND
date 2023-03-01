@@ -1,3 +1,5 @@
 # FSO2022BACKEND
-puh_front ja server osan 3 tehtäviä
-blogilista_server osan 4 tehtäviä
+osan 3
+ - **puh_front ja server**
+osa 4
+ - **blogilista_server**
