@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const supertest = require('supertest');
 const app = require('../app');
 const Blog = require('../models/blog');
+const User = require('../models/user');
+const helper = require('./test_helper');
 // const { MONGODB_URI } = require('../utils/config');
 
 const initialBlogs = [
@@ -31,8 +33,15 @@ const initialBlogs = [
 
 ];
 
+const testUser = {
+  username: 'root',
+  name: 'Test User',
+  password: 'salainen'
+};
+
 beforeEach(async () => {
   await Blog.deleteMany({});
+  await User.deleteMany({});
   for (let i = 0; i < initialBlogs.length; i++) {
     const blogObject = new Blog(initialBlogs[i]);
     await blogObject.save();
@@ -52,22 +61,69 @@ test('blogs are returned as json', async () => {
     .expect(200)
     .expect('Content-Type', /application\/json/);
 });
+describe('Add blog', () => {
+  test('a valid blog can be added', async () => {
+    const newBlog = initialBlogs[0];
 
-test('a valid blog can be added', async () => {
-  const newBlog = initialBlogs[0];
+    await helper.createUser(api, testUser);
 
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/);
+    const loginResponse =
+     await api
+       .post('/api/login')
+       .send({ username: testUser.username, password: testUser.password })
+       .expect(200);
 
-  const response = await api.get('/api/blogs');
+    await api
+      .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + loginResponse.body.token)
+      .send(newBlog)
+      .expect(201)
+      .expect('Content-Type', /application\/json/);
 
-  const contents = response.body.map(r => r.title);
+    const response = await api.get('/api/blogs');
 
-  expect(response.body).toHaveLength(initialBlogs.length + 1);
-  expect(contents).toContain(initialBlogs[0].title);
+    const contents = response.body.map(r => r.title);
+
+    expect(response.body).toHaveLength(initialBlogs.length + 1);
+    expect(contents).toContain(initialBlogs[0].title);
+  });
+
+  test('adding blog without login', async () => {
+    const newBlog = initialBlogs[0];
+
+    await helper.createUser(api, testUser);
+
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401);
+
+    const response = await api.get('/api/blogs');
+
+    expect(response.body).toHaveLength(initialBlogs.length);
+  });
+
+  test('adding blog with invalid user information', async () => {
+    const newBlog = initialBlogs[0];
+
+    await helper.createUser(api, testUser);
+
+    const loginResponse =
+     await api
+       .post('/api/login')
+       .send({ username: testUser.username, password: 'vaara' })
+       .expect(401);
+
+    await api
+      .post('/api/blogs')
+      .set('Authorization', 'Bearer ' + loginResponse.body.token)
+      .send(newBlog)
+      .expect(401);
+
+    const response = await api.get('/api/blogs');
+
+    expect(response.body).toHaveLength(initialBlogs.length);
+  });
 });
 
 test('blog has defined id value', async () => {
@@ -96,28 +152,67 @@ test('invalid blog gives statuscode bad request', async () => {
     url: 'www.googletin.net'
   };
 
+  await helper.createUser(api, testUser);
+
+  const loginResponse =
+     await api
+       .post('/api/login')
+       .send({ username: testUser.username, password: testUser.password })
+       .expect(200);
+
   await api
     .post('/api/blogs')
+    .set('Authorization', 'Bearer ' + loginResponse.body.token)
     .send(invalidBlogUrl)
     .expect(400)
     .expect('Content-Type', /application\/json/);
 
   await api
     .post('/api/blogs')
+    .set('Authorization', 'Bearer ' + loginResponse.body.token)
     .send(invalidBlogTitle)
     .expect(400)
     .expect('Content-Type', /application\/json/);
 });
 
-test('Delete blog', async () => {
-  let response = await api.get('/api/blogs');
+test('Add blog and delete it', async () => {
+  const newBlog = initialBlogs[0];
+
+  await helper.createUser(api, testUser);
+
+  const loginResponse =
+     await api
+       .post('/api/login')
+       .send({ username: testUser.username, password: testUser.password })
+       .expect(200);
 
   await api
-    .delete(`/api/blogs/${response.body[0].id}`)
+    .post('/api/blogs')
+    .set('Authorization', 'Bearer ' + loginResponse.body.token)
+    .send(newBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/);
+
+  let response = await api.get('/api/blogs');
+
+  const contents = response.body.map(r => r.title);
+
+  expect(response.body).toHaveLength(initialBlogs.length + 1);
+  expect(contents).toContain(initialBlogs[0].title);
+
+  await api
+    .delete(`/api/blogs/${response.body[response.body.length - 1].id}`)
+    .expect(401);
+
+  expect(response.body).toHaveLength(initialBlogs.length + 1);
+
+  await api
+    .delete(`/api/blogs/${response.body[response.body.length - 1].id}`)
+    .set('Authorization', 'Bearer ' + loginResponse.body.token)
     .expect(204);
 
   response = await api.get('/api/blogs');
-  expect(response.body).toHaveLength(initialBlogs.length - 1);
+  expect(response.body).toHaveLength(initialBlogs.length);
 });
 
 test('Update blog', async () => {
